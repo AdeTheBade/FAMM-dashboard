@@ -1,0 +1,7 @@
+app/
+venv/
+.DS_Store
+test_setup.py
+quickstart.sh
+models/
+app/
