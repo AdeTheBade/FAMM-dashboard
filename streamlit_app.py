@@ -286,7 +286,32 @@ def create_map(geojson_data, language='en', center=[7.9465, -1.0232], zoom=8):
     
     return m
 
+def get_unique_regions_and_districts(geojson_data):
+    """Extract unique regions and districts from actual data"""
+    regions = set()
+    districts = set()
+    
+    for feature in geojson_data.get('features', []):
+        props = feature.get('properties', {})
+        if 'region' in props and props['region']:
+            regions.add(props['region'])
+        if 'district' in props and props['district']:
+            districts.add(props['district'])
+    
+    # Sort alphabetically for consistent display
+    regions = sorted(list(regions))
+    districts = sorted(list(districts))
+    
+    return regions, districts
+
 def main():
+    # Load GeoJSON data FIRST (before sidebar) to get available filters
+    geojson_path = "data/geojson/latest_detections.geojson"
+    geojson_data_full = load_geojson_data(geojson_path)
+    
+    # Get unique regions and districts from actual data
+    available_regions, available_districts = get_unique_regions_and_districts(geojson_data_full)
+    
     # Sidebar
     with st.sidebar:
         # Logo/header - using emoji instead of image to avoid errors
@@ -303,30 +328,22 @@ def main():
         
         st.markdown("---")
         
-        # Region filter
+        # Region filter - DYNAMIC (populated from actual data)
+        region_options = [t['all_regions']] + available_regions
         region = st.selectbox(
             t['select_region'],
-            [t['all_regions'], 'Western Region', 'Ashanti Region', 'Eastern Region']
+            region_options
         )
         
         # Map region back to English for filtering
-        region_map = {
-            t['all_regions']: 'All Regions',
-            'Western Region': 'Western Region',
-            'Ashanti Region': 'Ashanti Region',
-            'Eastern Region': 'Eastern Region'
-        }
-        region_english = region_map.get(region, region)
+        region_english = 'All Regions' if region == t['all_regions'] else region
         
-        # District filter
-        districts_display = [t['all_districts'], 'Tarkwa-Nsuaem', 'Prestea-Huni Valley', 'Obuasi', 'Amansie Central']
-        district = st.selectbox(t['select_district'], districts_display)
+        # District filter - DYNAMIC (populated from actual data)
+        district_options = [t['all_districts']] + available_districts
+        district = st.selectbox(t['select_district'], district_options)
         
         # Map district back to English
-        district_map = {
-            t['all_districts']: 'All Districts'
-        }
-        district_english = district_map.get(district, district)
+        district_english = 'All Districts' if district == t['all_districts'] else district
         
         # Date range
         st.markdown("---")
@@ -350,9 +367,7 @@ def main():
     st.markdown(f"<h1 class='main-header'>{t['title']}</h1>", unsafe_allow_html=True)
     st.markdown(f"<p style='text-align: center; color: #666;'>{t['subtitle']}</p>", unsafe_allow_html=True)
     
-    # Load GeoJSON data
-    geojson_path = "data/geojson/latest_detections.geojson"
-    geojson_data_full = load_geojson_data(geojson_path)
+    # geojson_data_full already loaded at top of main() for filters
     
     # Apply filters
     geojson_filtered = geojson_data_full
