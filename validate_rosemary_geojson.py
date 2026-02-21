@@ -1,29 +1,6 @@
 #!/usr/bin/env python3
 """
 FAMM GeoJSON Validator & Cleaner
-----------------------------------
-Bridges Rosemary's inference output → dashboard-ready GeoJSON.
-
-ALERT THRESHOLD POLICY:
-  Rosemary's thresholds are used exactly as she calibrated them:
-    HIGH   : confidence > 0.8
-    MEDIUM : confidence > 0.5
-    LOW    : confidence <= 0.5
-  These are preserved from her deployment_inference.py and are NOT
-  remapped. She calibrated them based on the model's precision/recall
-  behaviour and they should be treated as authoritative.
-
-FIXES APPLIED:
-  1. Title-cases district names
-  2. Ensures region has "Region" suffix if missing
-  3. Fallback region from district substrings (safety net)
-  4. Validates required fields present
-  5. Validates date format is YYYY-MM-DD
-  6. Drops features with invalid geometry
-
-Usage:
-  python validate_rosemary_geojson.py                           # defaults
-  python validate_rosemary_geojson.py input.geojson output.geojson
 """
 
 import json
