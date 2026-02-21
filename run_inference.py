@@ -1,30 +1,6 @@
 #!/usr/bin/env python3
 """
 FAMM Inference Runner — CI-Safe Wrapper
------------------------------------------
-Runs Rosemary's MobileNet V3 inference pipeline in a GitHub Actions
-(Linux/CPU) environment. This file lives in the FAMM-dashboard repo
-and pulls model weights + boundary files from the org repo at runtime
-(done by the workflow before this script is called).
-
-Expected directory layout when called from CI:
-  FAMM-dashboard/
-  ├── run_inference.py          ← this file
-  ├── models/
-  │   └── mobilenetv3_best.pth  ← copied from org repo by workflow
-  ├── deployment/
-  │   ├── geoBoundaries-GHA-ADM1.geojson
-  │   └── geoBoundaries-GHA-ADM2.geojson
-  └── data/
-      └── tif_input/
-          └── *.tif             ← downloaded from GCS/Drive by workflow
-
-Output:
-  asm_monitoring_results.geojson  (repo root, then validated → data/geojson/)
-
-Exit codes:
-  0 — success (even if 0 detections; a clean run with no new sites is valid)
-  1 — hard failure (missing model, corrupt .tif, etc.)
 """
 
 import json
