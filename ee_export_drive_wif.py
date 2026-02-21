@@ -2,13 +2,6 @@
 """
 FAMM Earth Engine Export — Google Drive Version (Workload Identity Federation)
 -------------------------------------------------------------------------------
-LOCAL USAGE:
-  earthengine authenticate   (run once)
-  CI=false python ee_export_drive_wif.py
-
-GITHUB ACTIONS:
-  google-github-actions/auth@v2 sets GOOGLE_APPLICATION_CREDENTIALS automatically.
-  Script detects CI=true and uses google.auth.default() (WIF keyless auth).
 """
 
 import ee
