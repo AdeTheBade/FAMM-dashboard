@@ -1,0 +1,179 @@
+# .github/workflows/weekly_update.yml
+#
+# FAMM Weekly ASM Detection Pipeline
+# ------------------------------------
+# Schedule : Every Saturday 9 PM WAT (= 8 PM UTC)
+# Manual   : Actions tab → Weekly ASM Detection → Run workflow
+#
+# Authentication: Workload Identity Federation (keyless — no JSON secret)
+#   Set up by Rosemary on the GCP side.
+#
+# Storage: Google Drive (no GCS billing profile needed)
+#   Earth Engine exports the composite .tif to a shared Drive folder.
+#   The runner downloads it via the Drive API using WIF credentials.
+#
+# Required GitHub Secrets (Settings → Secrets → Actions):
+#   WIF_PROVIDER        — projects/NNNNN/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+#   WIF_SERVICE_ACCOUNT — faam-github-actions-ee-runner@famm-472015.iam.gserviceaccount.com
+#   GH_PAT              — Personal Access Token (repo scope) for committing back
+#
+# Pipeline:
+#   1. Checkout dashboard repo + org ML repo
+#   2. Install dependencies
+#   3. Authenticate to GCP via WIF
+#   4. Export Sentinel-2 composite → Drive (polls until done)
+#   5. Download .tif from Drive
+#   6. Run MobileNet V3 inference
+#   7. Validate & clean GeoJSON
+#   8. Commit updated detections → triggers Streamlit auto-redeploy
+
+name: Weekly ASM Detection
+
+on:
+  schedule:
+    - cron: "0 20 * * 6"    # 8 PM UTC = 9 PM WAT, every Saturday
+  workflow_dispatch:          # allow manual trigger for testing
+
+permissions:
+  contents: write             # needed to push the updated GeoJSON back
+  id-token: write             # needed for Workload Identity Federation
+
+jobs:
+  detect-and-update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 100      # EE export (up to 55 min) + inference (~10 min) + buffer
+
+    steps:
+
+      # ── 1. Checkout dashboard repo ─────────────────────────────────────────
+      - name: Checkout dashboard repo
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_PAT }}
+          fetch-depth: 0
+
+      # ── 2. Checkout org ML repo (model weights + boundary files) ───────────
+      - name: Checkout FAMM org repo
+        uses: actions/checkout@v4
+        with:
+          repository: projects-hamoye-org/FAMM
+          token: ${{ secrets.GH_PAT }}
+          path: famm-model
+
+      # ── 3. Set up Python ───────────────────────────────────────────────────
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # ── 4. Cache pip ───────────────────────────────────────────────────────
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-famm-v2
+
+      # ── 5. Install dependencies ────────────────────────────────────────────
+      - name: Install Python dependencies
+        run: |
+          pip install \
+            earthengine-api==1.6.12 \
+            google-auth==2.41.1 \
+            google-auth-httplib2==0.2.0 \
+            google-api-python-client==2.184.0 \
+            rasterio==1.4.3 \
+            geopandas==1.1.2 \
+            torch==2.1.0 \
+            torchvision==0.16.0 \
+            tqdm==4.67.1 \
+            shapely==2.1.2 \
+            numpy==1.26.3
+
+      # ── 6. Authenticate to Google Cloud via WIF ────────────────────────────
+      - name: Authenticate to Google Cloud (Workload Identity Federation)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      # ── 7. Set up Cloud SDK (optional but helps with diagnostics) ──────────
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      # ── 8. Stage model artifacts from org repo ─────────────────────────────
+      - name: Stage model artifacts
+        run: |
+          mkdir -p deployment models data/tif_input data/geojson
+
+          cp famm-model/deployment/geoBoundaries-GHA-ADM1.geojson deployment/
+          cp famm-model/deployment/geoBoundaries-GHA-ADM2.geojson deployment/
+          cp famm-model/models/mobilenetv3_best.pth               models/
+
+          echo "✅ Model artifacts staged"
+          ls -lh models/ deployment/
+
+      # ── 9. Export composite from Earth Engine → Drive ──────────────────────
+      - name: Export Sentinel-2 composite (EE → Drive)
+        run: |
+          OUTPUT=$(python ee_export_drive_wif.py 2>&1)
+          echo "$OUTPUT"
+
+          EXPORT_FILENAME=$(echo "$OUTPUT" | grep "^EXPORT_FILENAME=" | cut -d= -f2)
+          if [ -z "$EXPORT_FILENAME" ]; then
+            echo "❌ Could not extract export filename. Check EE logs above."
+            exit 1
+          fi
+          echo "EXPORT_FILENAME=$EXPORT_FILENAME" >> $GITHUB_ENV
+          echo "✅ Export complete: $EXPORT_FILENAME"
+
+      # ── 10. Verify .tif was downloaded by ee_export_drive_wif.py ──────────
+      # (the export script handles the download itself — this step just confirms)
+      - name: Verify .tif downloaded
+        run: |
+          TIF_PATH="data/tif_input/${{ env.EXPORT_FILENAME }}"
+          if [ ! -f "$TIF_PATH" ]; then
+            echo "❌ Expected .tif not found at: $TIF_PATH"
+            exit 1
+          fi
+          SIZE=$(du -h "$TIF_PATH" | cut -f1)
+          echo "✅ .tif confirmed at $TIF_PATH ($SIZE)"
+
+      # ── 11. Run MobileNet V3 inference ─────────────────────────────────────
+      - name: Run inference
+        run: python run_inference.py
+
+      # ── 12. Validate and clean GeoJSON ─────────────────────────────────────
+      - name: Validate and clean GeoJSON
+        run: |
+          python validate_rosemary_geojson.py \
+            asm_monitoring_results.geojson \
+            data/geojson/latest_detections.geojson
+
+      # ── 13. Commit updated detections ──────────────────────────────────────
+      - name: Commit updated detections
+        run: |
+          git config user.name  "FAMM Bot 🤖"
+          git config user.email "famm-bot@users.noreply.github.com"
+
+          git add data/geojson/latest_detections.geojson
+
+          if git diff --staged --quiet; then
+            echo "ℹ️  No changes in detections — nothing to commit this week."
+          else
+            COUNT=$(python -c "
+          import json
+          with open('data/geojson/latest_detections.geojson') as f:
+              print(len(json.load(f).get('features', [])))
+          ")
+            git commit -m "chore: weekly detection update $(date -u '+%Y-%m-%d') — ${COUNT} sites detected"
+            git push
+            echo "✅ Pushed — Streamlit Cloud will auto-redeploy"
+          fi
+
+      # ── 14. Cleanup temporary files (never committed) ──────────────────────
+      - name: Cleanup
+        if: always()
+        run: |
+          rm -rf data/tif_input/
+          rm -f  asm_monitoring_results.geojson
+          echo "🧹 Temp files cleaned"

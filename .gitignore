@@ -5,3 +5,10 @@ test_setup.py
 quickstart.sh
 models/
 app/
+deployment/
+models/
+data/tif_input/
+asm_monitoring_results.geojson
+__pycache__/
+*.pyc
+.env
