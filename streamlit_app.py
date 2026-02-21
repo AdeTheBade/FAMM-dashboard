@@ -397,9 +397,9 @@ def main():
         confidence = props.get('confidence', 0)
         
         # Count by alert level
-        if confidence >= 0.85:
+        if confidence >= 0.80:
             high_risk_count += 1
-        elif confidence >= 0.7:
+        elif confidence >= 0.5:
             medium_risk_count += 1
         
         # Count new sites in last 7 days
