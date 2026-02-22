@@ -46,7 +46,7 @@ import tempfile
 # ── Constants ─────────────────────────────────────────────────────────────────
 PROJECT_ID      = "famm-472015"
 DRIVE_FOLDER    = "FAMM_EE_Exports"
-DRIVE_FOLDER_ID = "1aREXMO2k3BEg7aZWMcD6ALjqa2bZnD_7"  # your personal Drive folder
+DRIVE_FOLDER_ID = "1aREXMO2k3BEg7aZWMcD6ALjqa2bZnD_7"  # your personal Drive folder — EE writes HERE
 SCALE           = 10
 BANDS           = ["B2","B3","B4","B5","B6","B7","B8","B8A","B11","B12"]
 
@@ -217,15 +217,23 @@ def build_composite(roi):
 # ── Start Drive export (exports to YOUR personal Drive folder) ────────────────
 def start_drive_export(composite, roi):
     """
-    Export to your personal Drive folder by ID.
-    EE exports to whichever account is authenticated — since we authenticated
-    with your personal OAuth token, this goes to YOUR Drive, not the service
-    account's (which has no quota).
+    Export directly into your specific Drive folder by ID.
+
+    WHY driveFolder instead of folder:
+      The 'folder' parameter matches by NAME — if you have multiple folders
+      named 'FAMM_EE_Exports', EE picks unpredictably and may create a new one.
+      The 'driveFolder' parameter takes a FOLDER ID directly — EE writes into
+      exactly that folder, no searching, no creating, no ambiguity.
+
+    The folder ID is your personal FAMM_EE_Exports folder:
+      https://drive.google.com/drive/folders/1PjFLEEg5fXIurCa_WHnVfXa5KMvdJ55N
+    The service account has Editor access to this folder so it can download
+    the tiles after EE finishes writing them.
     """
     task = ee.batch.Export.image.toDrive(
         image          = composite,
         description    = EXPORT_NAME,
-        folder         = DRIVE_FOLDER,
+        driveFolder    = DRIVE_FOLDER_ID,   # folder ID — no name ambiguity
         fileNamePrefix = EXPORT_NAME,
         region         = roi,
         scale          = SCALE,
