@@ -16,17 +16,19 @@ WHY HYBRID:
   the service account by file ID — no folder permission needed, no folder ID
   ambiguity, regardless of which folder EE creates.
 
-PERSONAL TOKEN SETUP (one-time, in GitHub Secrets):
-  1. Run locally: earthengine authenticate
-  2. cat ~/.config/earthengine/credentials
-  3. Copy the entire JSON and add as GitHub Secret: EE_USER_CREDENTIALS
+SECRETS SETUP (one-time, in GitHub Secrets):
+  EE_USER_CREDENTIALS   : cat ~/.config/earthengine/credentials
+                          Used for EE authentication only.
+  GCLOUD_USER_CREDENTIALS: cat ~/.config/gcloud/application_default_credentials.json
+                          Used for Drive file sharing (has broader OAuth scopes).
 
 LOCAL USAGE:
   CI=false python ee_export_drive_wif.py
 
 GITHUB ACTIONS:
-  Reads EE_USER_CREDENTIALS secret for EE export + Drive sharing.
-  Reads GOOGLE_APPLICATION_CREDENTIALS (set by WIF action) for Drive download.
+  EE_USER_CREDENTIALS    → EE export (earthengine scope)
+  GCLOUD_USER_CREDENTIALS → Drive sharing (drive scope)
+  GOOGLE_APPLICATION_CREDENTIALS (WIF) → Drive download (SA)
 """
 
 import ee
@@ -64,15 +66,12 @@ ROI_COORDS = [
 ]
 
 
-# ── Step 1: Load personal OAuth credentials ───────────────────────────────────
+# ── Step 1: Load credentials ─────────────────────────────────────────────────
 def load_personal_creds() -> dict:
     """
-    Load personal EE OAuth credentials from:
-      CI    : EE_USER_CREDENTIALS environment variable (GitHub Secret)
+    Load EE OAuth credentials for Earth Engine authentication.
+      CI    : EE_USER_CREDENTIALS secret (earthengine + devstorage scopes)
       Local : ~/.config/earthengine/credentials
-
-    Returns the parsed dict — must contain:
-      client_id, client_secret, refresh_token
     """
     in_ci = os.environ.get("CI", "false").lower() == "true"
 
@@ -80,8 +79,7 @@ def load_personal_creds() -> dict:
         ee_creds_json = os.environ.get("EE_USER_CREDENTIALS", "")
         if not ee_creds_json:
             print("❌ EE_USER_CREDENTIALS secret is not set.")
-            print("   Get it locally: cat ~/.config/earthengine/credentials")
-            print("   Paste the full JSON as GitHub Secret: EE_USER_CREDENTIALS")
+            print("   Get it: cat ~/.config/earthengine/credentials")
             sys.exit(1)
         try:
             return json.loads(ee_creds_json)
@@ -93,6 +91,39 @@ def load_personal_creds() -> dict:
         if not os.path.exists(creds_path):
             print(f"❌ Local EE credentials not found at {creds_path}")
             print("   Run: earthengine authenticate")
+            sys.exit(1)
+        with open(creds_path) as f:
+            return json.load(f)
+
+
+def load_drive_creds() -> dict:
+    """
+    Load gcloud ADC credentials for Drive file sharing.
+    These have broader OAuth scope than EE credentials and can access Drive.
+      CI    : GCLOUD_USER_CREDENTIALS secret
+      Local : ~/.config/gcloud/application_default_credentials.json
+    """
+    in_ci = os.environ.get("CI", "false").lower() == "true"
+
+    if in_ci:
+        gcloud_json = os.environ.get("GCLOUD_USER_CREDENTIALS", "")
+        if not gcloud_json:
+            print("❌ GCLOUD_USER_CREDENTIALS secret is not set.")
+            print("   Get it: cat ~/.config/gcloud/application_default_credentials.json")
+            print("   Add as GitHub Secret: GCLOUD_USER_CREDENTIALS")
+            sys.exit(1)
+        try:
+            return json.loads(gcloud_json)
+        except json.JSONDecodeError as e:
+            print(f"❌ GCLOUD_USER_CREDENTIALS is not valid JSON: {e}")
+            sys.exit(1)
+    else:
+        creds_path = os.path.expanduser(
+            "~/.config/gcloud/application_default_credentials.json"
+        )
+        if not os.path.exists(creds_path):
+            print(f"❌ gcloud ADC credentials not found at {creds_path}")
+            print("   Run: gcloud auth application-default login")
             sys.exit(1)
         with open(creds_path) as f:
             return json.load(f)
@@ -130,19 +161,25 @@ def initialize_ee_for_export(creds_data: dict):
 
 
 # ── Step 3: Build personal Drive client (find + share exported files) ─────────
-def build_personal_drive_service(creds_data: dict):
+def build_personal_drive_service(drive_creds_data: dict):
     """
-    Build Drive API client using personal OAuth credentials.
-    Used after export to find tiles and share each one with the SA.
-    Requests drive scope explicitly so it can call permissions().create().
+    Build Drive API client using gcloud ADC credentials.
+    These have drive scope and can call files().list() and permissions().create().
+
+    WHY gcloud creds and not EE creds?
+    EE credentials (from earthengine authenticate) are issued with only
+    earthengine + devstorage scopes. Requesting drive scope with those
+    credentials fails with invalid_scope. gcloud ADC credentials
+    (from gcloud auth application-default login) have broader scope
+    and work with the Drive API.
     """
     try:
         personal_creds = google.oauth2.credentials.Credentials(
             token         = None,
-            refresh_token = creds_data["refresh_token"],
+            refresh_token = drive_creds_data["refresh_token"],
             token_uri     = "https://oauth2.googleapis.com/token",
-            client_id     = creds_data["client_id"],
-            client_secret = creds_data["client_secret"],
+            client_id     = drive_creds_data["client_id"],
+            client_secret = drive_creds_data["client_secret"],
             scopes        = ["https://www.googleapis.com/auth/drive"]
         )
         return gdrive_build("drive", "v3", credentials=personal_creds)
@@ -364,7 +401,8 @@ if __name__ == "__main__":
 
     # 6. Find tiles in personal Drive and share each one with the SA
     print(f"\n🔗 Sharing exported tiles with service account...")
-    personal_drive = build_personal_drive_service(creds_data)
+    drive_creds_data = load_drive_creds()
+    personal_drive = build_personal_drive_service(drive_creds_data)
     files = share_files_with_sa(personal_drive, SA_EMAIL)
 
     if not files:
