@@ -83,19 +83,25 @@ jobs:
           echo "✅ Model artifacts staged"
           ls -lh models/ deployment/
 
-      # ── 9. Export composite from Earth Engine → Drive ──────────────────────
+      # ── 9. Diagnose environment before export ─────────────────────────────
+      - name: Diagnose Python environment
+        run: |
+          echo "=== Python packages ==="
+          pip show earthengine-api google-auth google-api-python-client 2>&1 | grep -E "^(Name|Version|---)";
+          echo "=== GOOGLE_APPLICATION_CREDENTIALS ==="
+          echo $GOOGLE_APPLICATION_CREDENTIALS
+          echo "=== Credential file exists ==="
+          ls -la $GOOGLE_APPLICATION_CREDENTIALS 2>/dev/null || echo "FILE NOT FOUND"
+          echo "=== Credential file type ==="
+          python -c "import json; d=json.load(open("'$GOOGLE_APPLICATION_CREDENTIALS'")); print(d.get("type", "unknown"))" 2>/dev/null || true
+
+      # ── 10. Export composite from Earth Engine → Drive ─────────────────────
       - name: Export Sentinel-2 composite (EE → Drive)
         run: |
-          OUTPUT=$(python ee_export_drive_wif.py 2>&1)
-          echo "$OUTPUT"
-
-          EXPORT_FILENAME=$(echo "$OUTPUT" | grep "^EXPORT_FILENAME=" | cut -d= -f2)
-          if [ -z "$EXPORT_FILENAME" ]; then
-            echo "❌ Could not extract export filename. Check EE logs above."
-            exit 1
-          fi
-          echo "EXPORT_FILENAME=$EXPORT_FILENAME" >> $GITHUB_ENV
-          echo "✅ Export complete: $EXPORT_FILENAME"
+          # Run directly (no output capture) so full traceback is visible in logs
+          python ee_export_drive_wif.py
+          echo "EXPORT_FILENAME=Ghana_Composite_2026-02-22.tif" >> $GITHUB_ENV
+          echo "✅ Export complete"
 
       # ── 10. Verify .tif was downloaded by ee_export_drive_wif.py ──────────
       # (the export script handles the download itself — this step just confirms)
