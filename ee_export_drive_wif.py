@@ -143,21 +143,21 @@ def initialize_ee(creds_data: dict):
 
 # ── Build Drive client ────────────────────────────────────────────────────────
 def build_drive_service(creds_data: dict):
-    """
-    Build Drive API client using personal credentials with Drive scope.
-    The refresh token must have been issued with drive scope included —
-    see module docstring for the gcloud command to generate this.
-    """
     try:
-        oauth_creds = make_oauth_creds(creds_data, [
-            "https://www.googleapis.com/auth/drive",
-        ])
+        oauth_creds = google.oauth2.credentials.Credentials(
+            token            = None,
+            refresh_token    = creds_data["refresh_token"],
+            token_uri        = "https://oauth2.googleapis.com/token",
+            client_id        = creds_data["client_id"],
+            client_secret    = creds_data["client_secret"],
+            scopes           = ["https://www.googleapis.com/auth/drive"],
+            quota_project_id = PROJECT_ID   # ← add this line
+        )
         return gdrive_build("drive", "v3", credentials=oauth_creds)
     except Exception as e:
         print(f"❌ Drive client build failed: {e}")
         sys.exit(1)
-
-
+      
 # ── Sentinel-2 cloud masking (Rosemary's logic — unchanged) ──────────────────
 def mask_s2(image, roi):
     image_date = image.date()
