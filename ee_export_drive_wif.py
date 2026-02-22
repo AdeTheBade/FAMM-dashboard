@@ -3,8 +3,8 @@
 FAMM Earth Engine Export — Google Drive (Hybrid Auth)
 ------------------------------------------------------
 AUTHENTICATION STRATEGY:
-  Earth Engine export  → your personal OAuth token (stored as GH secret)
-  Drive share          → personal OAuth token shares exported files with SA
+  Earth Engine export  → your personal OAuth token (EE_USER_CREDENTIALS secret)
+  Drive sharing        → personal OAuth token shares each exported file with SA
   Drive download       → service account via WIF downloads the shared files
 
 WHY HYBRID:
@@ -13,25 +13,20 @@ WHY HYBRID:
   has 15 GB free Drive storage, so EE can export there successfully.
 
   After export, the personal account shares each exported file directly with
-  the service account, which then downloads them via WIF. This avoids any
-  folder ID / folder name ambiguity in the EE export API.
+  the service account by file ID — no folder permission needed, no folder ID
+  ambiguity, regardless of which folder EE creates.
 
 PERSONAL TOKEN SETUP (one-time, in GitHub Secrets):
-  1. Run locally: python3 -c "import ee; ee.Authenticate(auth_mode='notebook')"
+  1. Run locally: earthengine authenticate
   2. cat ~/.config/earthengine/credentials
   3. Copy the entire JSON and add as GitHub Secret: EE_USER_CREDENTIALS
 
 LOCAL USAGE:
   CI=false python ee_export_drive_wif.py
-  (uses your local earthengine credentials automatically)
 
 GITHUB ACTIONS:
   Reads EE_USER_CREDENTIALS secret for EE export + Drive sharing.
   Reads GOOGLE_APPLICATION_CREDENTIALS (set by WIF action) for Drive download.
-
-YOUR DRIVE FOLDER:
-  https://drive.google.com/drive/folders/1aREXMO2k3BEg7aZWMcD6ALjqa2bZnD_7
-  Folder ID: 1aREXMO2k3BEg7aZWMcD6ALjqa2bZnD_7
 """
 
 import ee
@@ -47,16 +42,12 @@ from googleapiclient.discovery import build as gdrive_build
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 PROJECT_ID   = "famm-472015"
-DRIVE_FOLDER = "FAMM_EE_Exports"   # EE exports by folder NAME (API limitation)
+DRIVE_FOLDER = "FAMM_EE_Exports"
 SCALE        = 10
 BANDS        = ["B2","B3","B4","B5","B6","B7","B8","B8A","B11","B12"]
 
-# Your WIF service account email — gets files shared with it after export
-SA_EMAIL     = "faam-github-actions-ee-runner@famm-472015.iam.gserviceaccount.com"
-
-# EE OAuth client constants (public values, same for all EE users)
-EE_CLIENT_ID     = "517222506229-vsmmajv00ul0bs7p89v5m89qs8eb9359.apps.googleusercontent.com"
-EE_CLIENT_SECRET = "RUP0RZ6e0pPhDzsrz5A1pTce"
+# Rosemary's service account — note: faam (not famm) is intentional
+SA_EMAIL = "faam-github-actions-ee-runner@famm-472015.iam.gserviceaccount.com"
 
 today       = datetime.date.today()
 EXPORT_NAME = f"Ghana_Composite_{today}"
@@ -76,8 +67,12 @@ ROI_COORDS = [
 # ── Step 1: Load personal OAuth credentials ───────────────────────────────────
 def load_personal_creds() -> dict:
     """
-    Load personal EE OAuth credentials from secret (CI) or local file (local).
-    Returns the parsed credentials dict.
+    Load personal EE OAuth credentials from:
+      CI    : EE_USER_CREDENTIALS environment variable (GitHub Secret)
+      Local : ~/.config/earthengine/credentials
+
+    Returns the parsed dict — must contain:
+      client_id, client_secret, refresh_token
     """
     in_ci = os.environ.get("CI", "false").lower() == "true"
 
@@ -85,60 +80,70 @@ def load_personal_creds() -> dict:
         ee_creds_json = os.environ.get("EE_USER_CREDENTIALS", "")
         if not ee_creds_json:
             print("❌ EE_USER_CREDENTIALS secret is not set.")
-            print("   Run: python3 -c \"import ee; ee.Authenticate(auth_mode='notebook')\"")
-            print("   Then: cat ~/.config/earthengine/credentials")
-            print("   Copy the JSON into GitHub Secret: EE_USER_CREDENTIALS")
+            print("   Get it locally: cat ~/.config/earthengine/credentials")
+            print("   Paste the full JSON as GitHub Secret: EE_USER_CREDENTIALS")
             sys.exit(1)
-        return json.loads(ee_creds_json)
+        try:
+            return json.loads(ee_creds_json)
+        except json.JSONDecodeError as e:
+            print(f"❌ EE_USER_CREDENTIALS is not valid JSON: {e}")
+            sys.exit(1)
     else:
         creds_path = os.path.expanduser("~/.config/earthengine/credentials")
         if not os.path.exists(creds_path):
             print(f"❌ Local EE credentials not found at {creds_path}")
-            print("   Run: python3 -c \"import ee; ee.Authenticate(auth_mode='notebook')\"")
+            print("   Run: earthengine authenticate")
             sys.exit(1)
         with open(creds_path) as f:
             return json.load(f)
 
 
-# ── Step 2: Authenticate Earth Engine with personal OAuth token ───────────────
+# ── Step 2: Authenticate Earth Engine ────────────────────────────────────────
 def initialize_ee_for_export(creds_data: dict):
     """
-    Initialise EE using personal OAuth credentials explicitly.
-    Passes credentials directly to ee.Initialize() — never falls back to ADC.
+    Initialise EE using personal OAuth credentials.
+    client_id and client_secret are read from creds_data — never hardcoded —
+    so they always match the account that ran earthengine authenticate.
     """
     try:
         oauth_creds = google.oauth2.credentials.Credentials(
-            token=None,
-            refresh_token=creds_data["refresh_token"],
-            token_uri="https://oauth2.googleapis.com/token",
-            client_id=EE_CLIENT_ID,
-            client_secret=EE_CLIENT_SECRET,
-            scopes=creds_data.get("scopes", [
+            token         = None,
+            refresh_token = creds_data["refresh_token"],
+            token_uri     = "https://oauth2.googleapis.com/token",
+            client_id     = creds_data["client_id"],
+            client_secret = creds_data["client_secret"],
+            scopes        = creds_data.get("scopes", [
                 "https://www.googleapis.com/auth/earthengine",
-                "https://www.googleapis.com/auth/devstorage.full_control"
+                "https://www.googleapis.com/auth/devstorage.full_control",
             ])
         )
         ee.Initialize(credentials=oauth_creds, project=PROJECT_ID)
         print("✅ EE authenticated via personal OAuth token")
+    except KeyError as e:
+        print(f"❌ EE_USER_CREDENTIALS is missing required field: {e}")
+        print("   Expected fields: client_id, client_secret, refresh_token")
+        print("   Refresh: cat ~/.config/earthengine/credentials")
+        sys.exit(1)
     except Exception as e:
         print(f"❌ EE personal auth failed: {e}")
         sys.exit(1)
 
 
-# ── Step 3: Build personal Drive client (for export + sharing) ────────────────
+# ── Step 3: Build personal Drive client (find + share exported files) ─────────
 def build_personal_drive_service(creds_data: dict):
     """
     Build Drive API client using personal OAuth credentials.
-    Used to share exported files with the service account after export.
+    Used after export to find tiles and share each one with the SA.
+    Requests drive scope explicitly so it can call permissions().create().
     """
     try:
         personal_creds = google.oauth2.credentials.Credentials(
-            token=None,
-            refresh_token=creds_data["refresh_token"],
-            token_uri="https://oauth2.googleapis.com/token",
-            client_id=EE_CLIENT_ID,
-            client_secret=EE_CLIENT_SECRET,
-            scopes=["https://www.googleapis.com/auth/drive"]
+            token         = None,
+            refresh_token = creds_data["refresh_token"],
+            token_uri     = "https://oauth2.googleapis.com/token",
+            client_id     = creds_data["client_id"],
+            client_secret = creds_data["client_secret"],
+            scopes        = ["https://www.googleapis.com/auth/drive"]
         )
         return gdrive_build("drive", "v3", credentials=personal_creds)
     except Exception as e:
@@ -146,12 +151,12 @@ def build_personal_drive_service(creds_data: dict):
         sys.exit(1)
 
 
-# ── Step 4: Build SA Drive client (for download via WIF) ──────────────────────
+# ── Step 4: Build SA Drive client (WIF download) ─────────────────────────────
 def build_sa_drive_service():
     """
     Build Drive API client using WIF service account credentials (CI)
     or local ADC credentials (local run).
-    Used only to download files that have been shared with the SA.
+    Used only to download files already shared with the SA by file ID.
     """
     try:
         import google.auth
@@ -164,7 +169,7 @@ def build_sa_drive_service():
         sys.exit(1)
 
 
-# ── Sentinel-2 cloud masking ──────────────────────────────────────────────────
+# ── Sentinel-2 cloud masking (Rosemary's logic — unchanged) ──────────────────
 def mask_s2(image, roi):
     image_date = image.date()
     cloud_col  = (
@@ -186,10 +191,10 @@ def mask_s2(image, roi):
 
 # ── Build composite ───────────────────────────────────────────────────────────
 def build_composite(roi):
-    end  = ee.Date(str(today))
-    s7   = ee.Date(str(today - datetime.timedelta(days=7)))
-    s14  = ee.Date(str(today - datetime.timedelta(days=14)))
-    s30  = ee.Date(str(today - datetime.timedelta(days=30)))
+    end = ee.Date(str(today))
+    s7  = ee.Date(str(today - datetime.timedelta(days=7)))
+    s14 = ee.Date(str(today - datetime.timedelta(days=14)))
+    s30 = ee.Date(str(today - datetime.timedelta(days=30)))
 
     def col(start):
         return (ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
@@ -205,14 +210,15 @@ def build_composite(roi):
 # ── Start Drive export ────────────────────────────────────────────────────────
 def start_drive_export(composite, roi):
     """
-    Export to personal Drive using folder NAME (EE API only supports names).
-    EE will write into whichever FAMM_EE_Exports folder it finds (or create one).
-    We handle finding the file by sharing it directly with the SA after export.
+    Export composite to personal Drive using folder NAME.
+    EE may create a new folder if multiple folders share the same name —
+    this is fine because we locate files by name search after export and
+    share them directly by file ID, so folder location is irrelevant.
     """
     task = ee.batch.Export.image.toDrive(
         image          = composite,
         description    = EXPORT_NAME,
-        folder         = DRIVE_FOLDER,     # EE only accepts folder NAME, not ID
+        folder         = DRIVE_FOLDER,
         fileNamePrefix = EXPORT_NAME,
         region         = roi,
         scale          = SCALE,
@@ -244,39 +250,49 @@ def wait_for_task(task, max_minutes=55):
 # ── Share exported files with service account ─────────────────────────────────
 def share_files_with_sa(personal_drive, sa_email: str) -> list:
     """
-    Use personal Drive client to find exported files and share them with the SA.
-    Returns list of file dicts so the SA can download them by ID.
+    Find today's exported tiles using the personal Drive client (owner can
+    always find their own files) and share each one directly with the SA.
+
+    Sharing by file ID is folder-agnostic — it doesn't matter which
+    FAMM_EE_Exports folder EE wrote to. Once shared, the SA can download
+    each tile by its file ID without any folder search.
+
+    Returns list of file dicts for the SA download step.
     """
-    print(f"🔍 Searching personal Drive for: {EXPORT_NAME}*.tif")
+    print(f"🔍 Searching personal Drive for tiles: {EXPORT_NAME}*.tif")
 
     results = personal_drive.files().list(
-        q=f"name contains '{EXPORT_NAME}' and trashed=false and mimeType='image/tiff'",
-        fields="files(id,name,size)",
-        orderBy="name",
-        pageSize=20
+        q        = f"name contains '{EXPORT_NAME}' and trashed=false",
+        fields   = "files(id,name,size)",
+        orderBy  = "name",
+        pageSize = 20
     ).execute()
 
     files = results.get("files", [])
 
     if not files:
-        print(f"❌ No tiles found matching '{EXPORT_NAME}' in Drive.")
-        print(f"   Check that EE exported successfully to folder: {DRIVE_FOLDER}")
+        print(f"❌ No tiles found matching '{EXPORT_NAME}' in personal Drive.")
+        print(f"   EE reported COMPLETED — files may still be propagating.")
+        print(f"   Check drive.google.com → FAMM_EE_Exports for today's tiles.")
         return []
 
-    print(f"   Found {len(files)} tile(s) — sharing with {sa_email}...")
+    print(f"   Found {len(files)} tile(s) — sharing with SA ({sa_email})...")
 
     for f in files:
-        personal_drive.permissions().create(
-            fileId=f["id"],
-            body={
-                "type":         "user",
-                "role":         "reader",
-                "emailAddress": sa_email
-            },
-            fields="id"
-        ).execute()
-        size_mb = int(f.get("size", 0)) / 1_048_576
-        print(f"   ✅ Shared: {f['name']} ({size_mb:.1f} MB)")
+        try:
+            personal_drive.permissions().create(
+                fileId = f["id"],
+                body   = {
+                    "type":         "user",
+                    "role":         "reader",
+                    "emailAddress": sa_email,
+                },
+                fields = "id"
+            ).execute()
+            size_mb = int(f.get("size", 0)) / 1_048_576
+            print(f"   ✅ Shared: {f['name']} ({size_mb:.1f} MB)")
+        except Exception as e:
+            print(f"   ⚠️  Could not share {f['name']}: {e}")
 
     return files
 
@@ -284,14 +300,15 @@ def share_files_with_sa(personal_drive, sa_email: str) -> list:
 # ── Download files via service account ───────────────────────────────────────
 def download_files(sa_drive, files: list, local_dir: str) -> bool:
     """
-    Download files using SA credentials. Files must already be shared with SA.
-    Uses file IDs directly — no folder search needed.
+    Download tiles using SA credentials (WIF in CI, ADC locally).
+    Uses file IDs directly — no folder search, no ambiguity.
+    Files must already be shared with the SA before calling this.
     """
     from googleapiclient.http import MediaIoBaseDownload
 
     os.makedirs(local_dir, exist_ok=True)
     total_mb = sum(int(f.get("size", 0)) for f in files) / 1_048_576
-    print(f"\n⬇️  Downloading {len(files)} tile(s) (~{total_mb:.1f} MB total)...")
+    print(f"⬇️  Downloading {len(files)} tile(s) (~{total_mb:.1f} MB total)...")
 
     for i, f in enumerate(files, 1):
         fid     = f["id"]
@@ -324,10 +341,10 @@ if __name__ == "__main__":
     print(f"Date : {today}  |  Export: {EXPORT_NAME}")
     print("=" * 60)
 
-    # 1. Load personal credentials once — used for both EE and Drive sharing
+    # 1. Load personal credentials once — used for EE auth and Drive sharing
     creds_data = load_personal_creds()
 
-    # 2. Authenticate EE with personal OAuth token (never falls back to SA/ADC)
+    # 2. Authenticate EE with personal OAuth (client_id/secret from creds_data)
     initialize_ee_for_export(creds_data)
 
     # 3. Build ROI (must be after ee.Initialize)
@@ -345,16 +362,16 @@ if __name__ == "__main__":
     if not wait_for_task(task):
         sys.exit(1)
 
-    # 6. Share exported files with service account using personal Drive client
-    print(f"\n🔗 Sharing exported files with service account ({SA_EMAIL})...")
+    # 6. Find tiles in personal Drive and share each one with the SA
+    print(f"\n🔗 Sharing exported tiles with service account...")
     personal_drive = build_personal_drive_service(creds_data)
     files = share_files_with_sa(personal_drive, SA_EMAIL)
 
     if not files:
         sys.exit(1)
 
-    # 7. Download files using service account (WIF) — files are now shared with it
-    print("\n📥 Downloading tiles via service account...")
+    # 7. Download tiles using SA credentials (WIF) — shared by file ID
+    print("\n📥 Downloading tiles via service account (WIF)...")
     sa_drive = build_sa_drive_service()
     if not download_files(sa_drive, files, "data/tif_input"):
         sys.exit(1)
