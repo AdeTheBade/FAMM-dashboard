@@ -11,7 +11,7 @@
         ]
       },
       "properties": {
-        "confidence": 0.001,
+        "confidence": 0.9999,
         "district": "Upper Denkyira West",
         "region": "Central Region",
         "date": "2026-02-21",
