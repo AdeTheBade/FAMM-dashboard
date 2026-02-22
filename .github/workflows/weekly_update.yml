@@ -102,21 +102,22 @@ jobs:
         run: |
           # Run directly (no output capture) so full traceback is visible in logs
           python ee_export_drive_wif.py
-          echo "EXPORT_FILENAME=Ghana_Composite_2026-02-22.tif" >> $GITHUB_ENV
           echo "✅ Export complete"
 
       # ── 10. Verify .tif was downloaded by ee_export_drive_wif.py ──────────
       # (the export script handles the download itself — this step just confirms)
       - name: Verify .tif downloaded
         run: |
-          TIF_PATH="data/tif_input/${{ env.EXPORT_FILENAME }}"
-          if [ ! -f "$TIF_PATH" ]; then
-            echo "❌ Expected .tif not found at: $TIF_PATH"
+          COUNT=$(ls data/tif_input/Ghana_Composite_*.tif 2>/dev/null | wc -l)
+          if [ "$COUNT" -eq 0 ]; then
+            echo "❌ No .tif files found in data/tif_input/"
+            ls -la data/tif_input/ || echo "Directory is empty or missing"
             exit 1
           fi
-          SIZE=$(du -h "$TIF_PATH" | cut -f1)
-          echo "✅ .tif confirmed at $TIF_PATH ($SIZE)"
+          echo "✅ Found $COUNT .tif tile(s):"
+          ls -lh data/tif_input/Ghana_Composite_*.tif
 
+      
       # ── 11. Run MobileNet V3 inference ─────────────────────────────────────
       - name: Run inference
         run: python run_inference.py
