@@ -2,32 +2,6 @@
 """
 FAMM Earth Engine Export — Google Drive (Personal Auth)
 --------------------------------------------------------
-AUTHENTICATION:
-  One set of credentials handles everything: EE export + Drive download.
-  Stored as EE_USER_CREDENTIALS GitHub Secret.
-
-  The credentials MUST be generated with Drive scope included:
-
-    gcloud auth application-default login \
-      --scopes="https://www.googleapis.com/auth/drive,\
-https://www.googleapis.com/auth/earthengine,\
-https://www.googleapis.com/auth/devstorage.full_control,\
-https://www.googleapis.com/auth/cloud-platform,\
-openid,\
-https://www.googleapis.com/auth/userinfo.email"
-
-  Then: cat ~/.config/gcloud/application_default_credentials.json
-  Paste that JSON as EE_USER_CREDENTIALS GitHub Secret.
-
-  DO NOT use ~/.config/earthengine/credentials — those only have
-  earthengine + devstorage scopes and will fail for Drive.
-
-LOCAL USAGE:
-  CI=false python ee_export_drive_wif.py
-
-FUTURE:
-  Migrate to GCS when billing is resolved — eliminates personal credentials
-  from CI entirely.
 """
 
 import ee
