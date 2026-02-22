@@ -97,6 +97,8 @@ jobs:
 
       # ── 10. Export composite from Earth Engine → Drive ─────────────────────
       - name: Export Sentinel-2 composite (EE → Drive)
+        env:
+          EE_USER_CREDENTIALS: ${{ secrets.EE_USER_CREDENTIALS }}
         run: |
           # Run directly (no output capture) so full traceback is visible in logs
           python ee_export_drive_wif.py
