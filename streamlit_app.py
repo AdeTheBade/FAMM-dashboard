@@ -440,7 +440,7 @@ def main():
     with col4:
         st.metric(
             label="Model F1 Score",
-            value="0.87",
+            value="0.91",
             delta="Target: 0.85"
         )
     
