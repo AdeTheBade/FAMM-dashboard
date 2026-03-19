@@ -12,7 +12,7 @@ permissions:
 jobs:
   detect-and-update:
     runs-on: ubuntu-latest
-    timeout-minutes: 100      # EE export (up to 55 min) + inference (~10 min) + buffer
+    timeout-minutes: 360      # EE export (up to 55 min) + inference (~10 min) + buffer
 
     steps:
 
@@ -108,7 +108,7 @@ jobs:
       # (the export script handles the download itself — this step just confirms)
       - name: Verify .tif downloaded
         run: |
-          COUNT=$(ls data/tif_input/Ghana_Composite_*.tif 2>/dev/null | wc -l)
+          COUNT=$(ls data/tif_input/Ghana_*_Composite_*.tif 2>/dev/null | wc -l)
           if [ "$COUNT" -eq 0 ]; then
             echo "❌ No .tif files found in data/tif_input/"
             ls -la data/tif_input/ || echo "Directory is empty or missing"
