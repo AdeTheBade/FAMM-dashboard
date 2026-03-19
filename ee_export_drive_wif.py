@@ -57,8 +57,7 @@ COUNTRY      = "Ghana"
 SCALE        = 10
 BANDS        = ["B2","B3","B4","B5","B6","B7","B8","B8A","B11","B12"]
 
-today    = datetime.date.today()
-end_date = ee.Date(str(today))
+today = datetime.date.today()
 
 # Scopes the credentials MUST have been issued with
 REQUIRED_SCOPES = [
@@ -171,6 +170,7 @@ def mask_s2(image, roi):
 
 # ── Build composite for a single region ──────────────────────────────────────
 def build_composite(roi):
+    end_date = ee.Date(str(today))
     s7  = ee.Date(str(today - datetime.timedelta(days=7)))
     s14 = ee.Date(str(today - datetime.timedelta(days=14)))
     s30 = ee.Date(str(today - datetime.timedelta(days=30)))
