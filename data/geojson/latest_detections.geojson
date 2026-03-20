@@ -19,6 +19,443 @@
         "tile_id": "train_label1_c10_i406.tif",
         "alert_level": "HIGH"
       }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.528488030211217,
+          8.814359399309156
+        ]
+      },
+      "properties": {
+        "confidence": 0.5192,
+        "district": "Bole",
+        "region": "Savannah Region",
+        "date": "2026-03-20",
+        "area_ha": 501.76,
+        "tile_id": "Ghana_Northern_Composite_2026-03-20-0000020992-0000000000.tif",
+        "alert_level": "MEDIUM"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.19358694372775678,
+          6.294674858882311
+        ]
+      },
+      "properties": {
+        "confidence": 0.4689,
+        "district": "Upper Manya",
+        "region": "Eastern Region",
+        "date": "2026-03-20",
+        "area_ha": 501.76,
+        "tile_id": "Ghana_Eastern_Composite_2026-03-20-0000000000-0000010496.tif",
+        "alert_level": "LOW"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          0.7027520467667017,
+          5.873454822158668
+        ]
+      },
+      "properties": {
+        "confidence": 0.3354,
+        "district": "South Tongu",
+        "region": "Volta Region",
+        "date": "2026-03-20",
+        "area_ha": 501.76,
+        "tile_id": "Ghana_Volta_Composite_2026-03-20-0000031488-0000010496.tif",
+        "alert_level": "LOW"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          0.0035034296080663774,
+          7.2275752814404335
+        ]
+      },
+      "properties": {
+        "confidence": 0.8579,
+        "district": "Sene East",
+        "region": "Bono East Region",
+        "date": "2026-03-20",
+        "area_ha": 501.76,
+        "tile_id": "Ghana_Brong Ahafo_Composite_2026-03-20-0000010496-0000031488.tif",
+        "alert_level": "HIGH"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.2137092060920341,
+          6.257304943062939
+        ]
+      },
+      "properties": {
+        "confidence": 0.5508,
+        "district": "Yilo Krobo",
+        "region": "Eastern Region",
+        "date": "2026-03-20",
+        "area_ha": 501.76,
+        "tile_id": "Ghana_Eastern_Composite_2026-03-20-0000010496-0000010496.tif",
+        "alert_level": "MEDIUM"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          0.340371661152887,
+          8.814359399309156
+        ]
+      },
+      "properties": {
+        "confidence": 0.5446,
+        "district": "Nanumba South",
+        "region": "Northern Region",
+        "date": "2026-03-20",
+        "area_ha": 501.76,
+        "tile_id": "Ghana_Northern_Composite_2026-03-20-0000020992-0000031488.tif",
+        "alert_level": "MEDIUM"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -3.0645127602453357,
+          6.050422933130213
+        ]
+      },
+      "properties": {
+        "confidence": 0.5671,
+        "district": "Suaman",
+        "region": "Western North Region",
+        "date": "2026-03-20",
+        "area_ha": 501.76,
+        "tile_id": "Ghana_Western_Composite_2026-03-20-0000010496-0000000000.tif",
+        "alert_level": "MEDIUM"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          0.4007384482457188,
+          9.032829676407024
+        ]
+      },
+      "properties": {
+        "confidence": 0.4554,
+        "district": "Tatale Sanguli",
+        "region": "Northern Region",
+        "date": "2026-03-20",
+        "area_ha": 501.76,
+        "tile_id": "Ghana_Northern_Composite_2026-03-20-0000010496-0000031488.tif",
+        "alert_level": "LOW"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.9236569236953946,
+          5.067306686189808
+        ]
+      },
+      "properties": {
+        "confidence": 0.4532,
+        "district": "Jomoro",
+        "region": "Western Region",
+        "date": "2026-03-20",
+        "area_ha": 501.76,
+        "tile_id": "Ghana_Western_Composite_2026-03-20-0000020992-0000000000.tif",
+        "alert_level": "LOW"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -3.145001809702445,
+          6.3292599973209125
+        ]
+      },
+      "properties": {
+        "confidence": 0.377,
+        "district": "Juaboso",
+        "region": "Western North Region",
+        "date": "2026-03-20",
+        "area_ha": 501.76,
+        "tile_id": "Ghana_Western_Composite_2026-03-20-0000000000-0000000000.tif",
+        "alert_level": "LOW"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.2894371845433098,
+          5.775628287718051
+        ]
+      },
+      "properties": {
+        "confidence": 0.6565,
+        "district": "Ga North Municipal",
+        "region": "Eastern Region",
+        "date": "2026-03-20",
+        "area_ha": 501.76,
+        "tile_id": "Ghana_Greater Accra_Composite_2026-03-20-0000000000-0000000000.tif",
+        "alert_level": "MEDIUM"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.30048646253797995,
+          8.138646642594454
+        ]
+      },
+      "properties": {
+        "confidence": 0.4013,
+        "district": "Krachi Nchumuru",
+        "region": "Oti Region",
+        "date": "2026-03-20",
+        "area_ha": 501.76,
+        "tile_id": "Ghana_Volta_Composite_2026-03-20-0000000000-0000000000.tif",
+        "alert_level": "LOW"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.5836445886561554,
+          6.807882380699793
+        ]
+      },
+      "properties": {
+        "confidence": 0.7226,
+        "district": "Asunafo North Municipal",
+        "region": "Ahafo Region",
+        "date": "2026-03-20",
+        "area_ha": 501.76,
+        "tile_id": "Ghana_Brong Ahafo_Composite_2026-03-20-0000020992-0000000000.tif",
+        "alert_level": "MEDIUM"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          0.6625075220381471,
+          6.313269985263585
+        ]
+      },
+      "properties": {
+        "confidence": 0.9574,
+        "district": "Adaklu",
+        "region": "Volta Region",
+        "date": "2026-03-20",
+        "area_ha": 501.76,
+        "tile_id": "Ghana_Volta_Composite_2026-03-20-0000020992-0000010496.tif",
+        "alert_level": "HIGH"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.0552555385370535,
+          6.2628744978244795
+        ]
+      },
+      "properties": {
+        "confidence": 0.5072,
+        "district": "Upper Denkyira West",
+        "region": "Central Region",
+        "date": "2026-03-20",
+        "area_ha": 501.76,
+        "tile_id": "Ghana_Central_Composite_2026-03-20-0000000000-0000000000.tif",
+        "alert_level": "MEDIUM"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.0995424820441455,
+          6.327193872167438
+        ]
+      },
+      "properties": {
+        "confidence": 0.8777,
+        "district": "Amansie South",
+        "region": "Ashanti Region",
+        "date": "2026-03-20",
+        "area_ha": 501.76,
+        "tile_id": "Ghana_Ashanti_Composite_2026-03-20-0000010496-0000000000.tif",
+        "alert_level": "HIGH"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -1.1429265359852672,
+          8.009468904738066
+        ]
+      },
+      "properties": {
+        "confidence": 0.8731,
+        "district": "East Gonja Municipal",
+        "region": "Savannah Region",
+        "date": "2026-03-20",
+        "area_ha": 501.76,
+        "tile_id": "Ghana_Northern_Composite_2026-03-20-0000020992-0000010496.tif",
+        "alert_level": "HIGH"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -3.0062120983059786,
+          7.126963969619047
+        ]
+      },
+      "properties": {
+        "confidence": 0.4417,
+        "district": "Dormaa Municipal",
+        "region": "Bono Region",
+        "date": "2026-03-20",
+        "area_ha": 501.76,
+        "tile_id": "Ghana_Brong Ahafo_Composite_2026-03-20-0000010496-0000000000.tif",
+        "alert_level": "LOW"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.1864095700185033,
+          9.052951938771301
+        ]
+      },
+      "properties": {
+        "confidence": 0.3056,
+        "district": "Bole",
+        "region": "Savannah Region",
+        "date": "2026-03-20",
+        "area_ha": 501.76,
+        "tile_id": "Ghana_Northern_Composite_2026-03-20-0000010496-0000000000.tif",
+        "alert_level": "LOW"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -1.096214141211052,
+          6.237182680698662
+        ]
+      },
+      "properties": {
+        "confidence": 0.4688,
+        "district": "Birim North",
+        "region": "Eastern Region",
+        "date": "2026-03-20",
+        "area_ha": 501.76,
+        "tile_id": "Ghana_Eastern_Composite_2026-03-20-0000010496-0000000000.tif",
+        "alert_level": "LOW"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.9108110151324853,
+          10.718518307057307
+        ]
+      },
+      "properties": {
+        "confidence": 0.342,
+        "district": "Lawra",
+        "region": "Upper West Region",
+        "date": "2026-03-20",
+        "area_ha": 501.76,
+        "tile_id": "Ghana_Upper West_Composite_2026-03-20-0000000000-0000000000.tif",
+        "alert_level": "LOW"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -1.281985741966969,
+          10.853355431203648
+        ]
+      },
+      "properties": {
+        "confidence": 0.4194,
+        "district": "Kasena Nankana West",
+        "region": "Upper East Region",
+        "date": "2026-03-20",
+        "area_ha": 501.76,
+        "tile_id": "Ghana_Upper East_Composite_2026-03-20-0000000000-0000000000.tif",
+        "alert_level": "LOW"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          0.22269235893322942,
+          6.313269985263585
+        ]
+      },
+      "properties": {
+        "confidence": 0.5041,
+        "district": "North Tongu",
+        "region": "Volta Region",
+        "date": "2026-03-20",
+        "area_ha": 501.76,
+        "tile_id": "Ghana_Volta_Composite_2026-03-20-0000020992-0000000000.tif",
+        "alert_level": "MEDIUM"
+      }
     }
   ]
 }
