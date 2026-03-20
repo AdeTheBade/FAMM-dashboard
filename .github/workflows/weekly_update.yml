@@ -3,7 +3,16 @@ name: Weekly ASM Detection
 on:
   schedule:
     - cron: "0 20 * * 6"    # 8 PM UTC = 9 PM WAT, every Saturday
-  workflow_dispatch:          # allow manual trigger for testing
+  workflow_dispatch:
+    inputs:
+      skip_export:
+        description: 'Skip EE export — re-download from Drive (files already exported)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
 
 permissions:
   contents: write             # needed to push the updated GeoJSON back
@@ -12,7 +21,7 @@ permissions:
 jobs:
   detect-and-update:
     runs-on: ubuntu-latest
-    timeout-minutes: 360      # EE export (up to 55 min) + inference (~10 min) + buffer
+    timeout-minutes: 360      # EE export (several hours for all Ghana regions) + inference + buffer
 
     steps:
 
@@ -67,7 +76,7 @@ jobs:
           workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
           service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
 
-      # ── 7. Set up Cloud SDK (optional but helps with diagnostics) ──────────
+      # ── 7. Set up Cloud SDK ────────────────────────────────────────────────
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
@@ -83,29 +92,64 @@ jobs:
           echo "✅ Model artifacts staged"
           ls -lh models/ deployment/
 
-      # ── 9. Diagnose environment before export ─────────────────────────────
+      # ── 9. Diagnose Python environment ────────────────────────────────────
       - name: Diagnose Python environment
         run: |
           echo "=== Python packages ==="
           pip show earthengine-api google-auth google-api-python-client 2>&1 | grep -E "^(Name|Version|---)";
           echo "=== GOOGLE_APPLICATION_CREDENTIALS ==="
           echo $GOOGLE_APPLICATION_CREDENTIALS
-          echo "=== Credential file exists ==="
-          ls -la $GOOGLE_APPLICATION_CREDENTIALS 2>/dev/null || echo "FILE NOT FOUND"
-          echo "=== Credential file type ==="
-          python -c "import json; d=json.load(open("'$GOOGLE_APPLICATION_CREDENTIALS'")); print(d.get("type", "unknown"))" 2>/dev/null || true
 
       # ── 10. Export composite from Earth Engine → Drive ─────────────────────
+      #        Skipped when skip_export=true (tiles already in Drive from prev run)
       - name: Export Sentinel-2 composite (EE → Drive)
+        if: ${{ github.event.inputs.skip_export != 'true' }}
         env:
           EE_USER_CREDENTIALS: ${{ secrets.EE_USER_CREDENTIALS }}
         run: |
-          # Run directly (no output capture) so full traceback is visible in logs
           python ee_export_drive_wif.py
           echo "✅ Export complete"
 
-      # ── 10. Verify .tif was downloaded by ee_export_drive_wif.py ──────────
-      # (the export script handles the download itself — this step just confirms)
+      # ── 11. Re-download tiles from Drive (skip_export mode only) ──────────
+      #        Runs only when skip_export=true — pulls today's tiles from Drive
+      #        without re-running the full EE export
+      - name: Re-download tiles from Drive
+        if: ${{ github.event.inputs.skip_export == 'true' }}
+        env:
+          EE_USER_CREDENTIALS: ${{ secrets.EE_USER_CREDENTIALS }}
+        run: |
+          python - << 'EOF'
+          import os, sys, datetime
+          sys.path.insert(0, '.')
+          from ee_export_drive_wif import (
+              load_creds, initialize_ee,
+              build_drive_service, download_region_tiles
+          )
+
+          today = datetime.date.today()
+          print(f"Re-downloading tiles for: {today}")
+
+          creds_data = load_creds()
+          initialize_ee(creds_data)
+          drive_svc  = build_drive_service(creds_data)
+
+          regions = [
+              "Ashanti", "Brong Ahafo", "Central", "Eastern",
+              "Greater Accra", "Northern", "Upper East",
+              "Upper West", "Volta", "Western"
+          ]
+
+          os.makedirs("data/tif_input", exist_ok=True)
+          for region in regions:
+              export_name = f"Ghana_{region}_Composite_{today}"
+              print(f"\n📂 {region}")
+              download_region_tiles(drive_svc, export_name, "data/tif_input")
+
+          count = len([f for f in os.listdir("data/tif_input") if f.endswith(".tif")])
+          print(f"\n✅ {count} tile(s) ready in data/tif_input/")
+          EOF
+
+      # ── 12. Verify .tif downloaded ─────────────────────────────────────────
       - name: Verify .tif downloaded
         run: |
           COUNT=$(ls data/tif_input/Ghana_*_Composite_*.tif 2>/dev/null | wc -l)
@@ -115,21 +159,20 @@ jobs:
             exit 1
           fi
           echo "✅ Found $COUNT .tif tile(s):"
-          ls -lh data/tif_input/Ghana_Composite_*.tif
+          ls -lh data/tif_input/Ghana_*_Composite_*.tif
 
-      
-      # ── 11. Run MobileNet V3 inference ─────────────────────────────────────
+      # ── 13. Run MobileNet V3 inference ─────────────────────────────────────
       - name: Run inference
         run: python run_inference.py
 
-      # ── 12. Validate and clean GeoJSON ─────────────────────────────────────
+      # ── 14. Validate and clean GeoJSON ─────────────────────────────────────
       - name: Validate and clean GeoJSON
         run: |
           python validate_rosemary_geojson.py \
             asm_monitoring_results.geojson \
             data/geojson/latest_detections.geojson
 
-      # ── 13. Commit updated detections ──────────────────────────────────────
+      # ── 15. Commit updated detections ──────────────────────────────────────
       - name: Commit updated detections
         run: |
           git config user.name  "FAMM Bot 🤖"
@@ -150,7 +193,7 @@ jobs:
             echo "✅ Pushed — Streamlit Cloud will auto-redeploy"
           fi
 
-      # ── 14. Cleanup temporary files (never committed) ──────────────────────
+      # ── 16. Cleanup temporary files ────────────────────────────────────────
       - name: Cleanup
         if: always()
         run: |
